@@ -1,8 +1,11 @@
+import datetime
 import os
 import psycopg2
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from uuid import UUID, uuid4
+from fastapi.middleware.cors import CORSMiddleware
 
 # Cargar variables de entorno
 load_dotenv()
@@ -16,24 +19,43 @@ DBNAME = os.getenv("dbname")
 
 # Conectar a PostgreSQL
 conn = psycopg2.connect(
-        user=USER,
-        password=PASSWORD,
-        host=HOST,
-        port=PORT,
-        dbname=DBNAME
-    )
+    user=USER,
+    password=PASSWORD,
+    host=HOST,
+    port=PORT,
+    dbname=DBNAME
+)
 cursor = conn.cursor()
 
 # Crear aplicación FastAPI
-app = FastAPI()
+app = FastAPI(
+    title="API de Productos y Precios BackMarket",
+    description="Esta API permite gestionar productos y precios en una base de datos PostgreSQL.",
+    version="1.0.0",
+    contact={
+        "name": "Eduardo Oliva Garcia",
+        "email": "eduolivag5@gmail.com",
+    },
+)
+
+# Configuración de CORS para permitir cualquier origen
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permitir solicitudes desde cualquier origen
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Permitir todos los encabezados
+)
 
 # Modelo de datos para productos
 class Product(BaseModel):
-    marca: str
+    id: UUID = Field(default_factory=uuid4)
+    marca: int
     modelo: str
     color: int
     almacenamiento: int
-    fecha_lanzamiento: str
+    fecha_lanzamiento: datetime.date
+    images: list[str]
 
 # Modelo de datos para precios
 class Price(BaseModel):
@@ -43,170 +65,111 @@ class Price(BaseModel):
     battery: int
     precio: float
 
-# Endpoint para obtener todos los productos
+# Obtener todos los productos
 @app.get("/products")
 def get_products():
     try:
         cursor.execute("SELECT * FROM products")
         products = cursor.fetchall()
-        return [
+        return {"error": False, "message": "OK", "data": [
             {
-                "id": p[0],
-                "created_at": p[1],
-                "marca": p[2],
-                "modelo": p[3],
-                "color": p[4],
-                "almacenamiento": p[5],
-                "fecha_lanzamiento": p[6]
-            }
-            for p in products
-        ]
+                "id": p[0], "created_at": p[1], "marca": p[2], "modelo": p[3],
+                "color": p[4], "almacenamiento": p[5], "fecha_lanzamiento": p[6], "images": p[7]
+            } for p in products
+        ]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener productos: " + str(e))
+        return {"error": True, "message": str(e), "data": []}
 
-# Endpoint para obtener un producto por ID
-@app.get("/products/{product_id}")
-def get_product(product_id: int):
+# Obtener un producto por ID
+@app.get("/products/details")
+def get_product_by_id(id: UUID = Query(..., alias="id")):
     try:
-        cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+        cursor.execute("SELECT * FROM products WHERE id = %s", (str(id),))
         product = cursor.fetchone()
         if product:
-            return {
-                "id": product[0],
-                "created_at": product[1],
-                "marca": product[2],
-                "modelo": product[3],
-                "color": product[4],
-                "almacenamiento": product[5],
-                "fecha_lanzamiento": product[6]
-            }
+            return {"error": False, "message": "OK", "data": {
+                "id": product[0], "created_at": product[1], "marca": product[2],
+                "modelo": product[3], "color": product[4], "almacenamiento": product[5],
+                "fecha_lanzamiento": product[6], "images": product[7]
+            }}
         else:
-            raise HTTPException(status_code=404, detail="Producto no encontrado")
+            return {"error": True, "message": "Producto no encontrado", "data": None}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener producto: " + str(e))
+        return {"error": True, "message": str(e), "data": None}
 
-# Endpoint para obtener todos los precios
+# Obtener todos los precios
 @app.get("/prices")
 def get_prices():
     try:
         cursor.execute("SELECT * FROM prices")
         prices = cursor.fetchall()
-        return [
-            {
-                "id": p[0],
-                "id_product": p[1],
-                "status": p[2],
-                "battery": p[3],
-                "price": p[4]
-            }
+        return {"error": False, "message": "OK", "data": [
+            {"id": p[0], "id_product": p[1], "status": p[2], "battery": p[3], "price": p[4]}
             for p in prices
-        ]
+        ]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener precios: " + str(e))
+        return {"error": True, "message": str(e), "data": []}
 
-# Endpoint para obtener un precio por ID de producto
-@app.get("/prices/{product_id}")
-def get_price_by_product(product_id: int):
+# Obtener precio por ID de producto
+@app.get("/prices/details")
+def get_price_by_product(id: UUID = Query(..., alias="id")):
     try:
-        cursor.execute("SELECT * FROM prices WHERE id_product = %s", (product_id,))
+        cursor.execute("SELECT * FROM prices WHERE id_product = %s", (str(id),))
         price = cursor.fetchall()
         if price:
-            return [
-                {
-                    "id": p[0],
-                    "id_product": p[1],
-                    "status": p[2],
-                    "battery": p[3],
-                    "price": p[4]
-                }
+            return {"error": False, "message": "OK", "data": [
+                {"id": p[0], "id_product": p[1], "status": p[2], "battery": p[3], "price": p[4]}
                 for p in price
-            ]
+            ]}
         else:
-            raise HTTPException(status_code=404, detail="Precio no encontrado para este producto")
+            return {"error": True, "message": "Precio no encontrado para este producto", "data": None}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener precios: " + str(e))
+        return {"error": True, "message": str(e), "data": None}
 
-# Endpoint para obtener todos los colores
-@app.get("/colors")
-def get_colors():
-    try:
-        cursor.execute("SELECT * FROM colors")
-        colors = cursor.fetchall()
-        return [
-            {
-                "id": c[0],
-                "color": c[1]
-            }
-            for c in colors
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener colores: " + str(e))
-
-# Endpoint para obtener todos los estados de la batería
-@app.get("/battery_status")
-def get_battery_status():
-    try:
-        cursor.execute("SELECT * FROM battery_status")
-        battery_status = cursor.fetchall()
-        return [
-            {
-                "id": b[0],
-                "estado": b[1],
-                "descripcion": b[2]
-            }
-            for b in battery_status
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener estados de la batería: " + str(e))
-
-# Endpoint para obtener todos los estados de los teléfonos
-@app.get("/phone_status")
-def get_phone_status():
-    try:
-        cursor.execute("SELECT * FROM phone_status")
-        phone_status = cursor.fetchall()
-        return [
-            {
-                "id": p[0],
-                "estado": p[1],
-                "descripcrion": p[2]
-            }
-            for p in phone_status
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener estados de los teléfonos: " + str(e))
-
-# Endpoint para obtener todas las marcas
-@app.get("/brands")
-def get_brands():
-    try:
-        cursor.execute("SELECT * FROM brands")
-        brands = cursor.fetchall()
-        return [
-            {
-                "id": b[0],
-                "marca": b[1]
-            }
-            for b in brands
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al obtener marcas: " + str(e))
-
-# Endpoint para crear un nuevo producto
-@app.post("/products")
+# Crear un producto
+@app.post("/products", summary="Crear un producto", description="Crea un nuevo producto en la base de datos.")
 def create_product(product: Product):
     try:
-        cursor.execute(
-            """
-            INSERT INTO products (marca, modelo, color, almacenamiento, fecha_lanzamiento)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id
-            """,
-            (product.marca, product.modelo, product.color, product.almacenamiento, product.fecha_lanzamiento)
-        )
-        new_product_id = cursor.fetchone()[0]
+        query = """
+            INSERT INTO products (marca, modelo, color, almacenamiento, fecha_lanzamiento, image_urls) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        values = (product.marca, product.modelo, product.color, product.almacenamiento, product.fecha_lanzamiento, product.images)
+        cursor.execute(query, values)
         conn.commit()
-        return {"id": new_product_id, "modelo": product.modelo, "estado": product.estado, "color": product.color}
+        return {"error": False, "message": "Producto creado correctamente", "data": product}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=400, detail="Error al crear producto: " + str(e))
+        return {"error": True, "message": "Error al crear producto: " + str(e), "data": None}
 
+# Actualizar un producto por ID
+@app.put("/products")
+def update_product(id: UUID = Query(..., alias="id"), product: Product = None):
+    try:
+        query = """
+            UPDATE products 
+            SET marca = %s, modelo = %s, color = %s, almacenamiento = %s, fecha_lanzamiento = %s, image_urls = %s
+            WHERE id = %s
+        """
+        values = (product.marca, product.modelo, product.color, product.almacenamiento, product.fecha_lanzamiento, product.images, str(id))
+        cursor.execute(query, values)
+        conn.commit()
+        if cursor.rowcount == 0:
+            return {"error": True, "message": "Producto no encontrado", "data": None}
+        return {"error": False, "message": "Producto actualizado correctamente", "data": None}
+    except Exception as e:
+        conn.rollback()
+        return {"error": True, "message": str(e), "data": None}
+
+# Eliminar un producto por ID
+@app.delete("/products")
+def delete_product(id: UUID = Query(..., alias="id")):
+    try:
+        cursor.execute("DELETE FROM products WHERE id = %s", (str(id),))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return {"error": True, "message": "Producto no encontrado", "data": None}
+        return {"error": False, "message": "Producto eliminado correctamente", "data": None}
+    except Exception as e:
+        conn.rollback()
+        return {"error": True, "message": str(e), "data": None}
