@@ -3,7 +3,7 @@ import psycopg2
 from fastapi import FastAPI, Request
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-from routes import products, prices, brands, phone_status
+from routes import products, prices, brands, phone_status, reviews
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
@@ -63,3 +63,4 @@ app.include_router(products.router)
 app.include_router(prices.router)
 app.include_router(brands.router)
 app.include_router(phone_status.router)
+app.include_router(reviews.router)

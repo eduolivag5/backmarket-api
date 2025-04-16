@@ -38,3 +38,9 @@ class BatteryStatus(BaseModel):
 class Colors(BaseModel):
     id: Optional[int] = None
     color: str
+
+class Reviews(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    stars: float
+    comment: str
+    image: str
