@@ -3,7 +3,7 @@ import psycopg2
 from fastapi import FastAPI, Request
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-from routes import products, prices, brands, phone_status, battery, colors
+from routes import products, prices, brands, phone_status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
@@ -58,9 +58,8 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         },
     )
 
+
 app.include_router(products.router)
 app.include_router(prices.router)
 app.include_router(brands.router)
 app.include_router(phone_status.router)
-app.include_router(battery.router)
-app.include_router(colors.router)

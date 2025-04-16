@@ -8,8 +8,8 @@ class Product(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     marca: int
     modelo: str
-    color: int
-    almacenamiento: int
+    color: list[str]
+    almacenamiento: list[int]
     fecha_lanzamiento: datetime.date
     images: list[str]
 

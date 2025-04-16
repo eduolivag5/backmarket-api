@@ -16,6 +16,16 @@ def get_products(id: UUID | None = Query(None, alias="id")):
     cursor = conn.cursor()
 
     try:
+
+        def get_prices(product_id):
+            cursor.execute("""
+                SELECT ps.estado, pr.price
+                FROM prices pr
+                JOIN phone_status ps ON pr.status = ps.id
+                WHERE pr.id_product = %s
+            """, (str(product_id),))
+            return [{"status": estado, "price": price} for estado, price in cursor.fetchall()]
+
         if id:
             # Buscar un producto por ID
             cursor.execute("SELECT * FROM products WHERE id = %s", (str(id),))
@@ -27,7 +37,7 @@ def get_products(id: UUID | None = Query(None, alias="id")):
                     "data": {
                         "id": product[0], "created_at": product[1], "marca": product[2],
                         "modelo": product[3], "color": product[4], "almacenamiento": product[5],
-                        "fecha_lanzamiento": product[6], "images": product[7]
+                        "fecha_lanzamiento": product[6], "images": product[7], "prices": get_prices(product[0])
                     }
                 }
             # Lanzar directamente una excepción HTTP 404 sin capturarla en el except
@@ -42,7 +52,8 @@ def get_products(id: UUID | None = Query(None, alias="id")):
             "data": [
                 {
                     "id": p[0], "created_at": p[1], "marca": p[2], "modelo": p[3],
-                    "color": p[4], "almacenamiento": p[5], "fecha_lanzamiento": p[6], "images": p[7]
+                    "color": p[4], "almacenamiento": p[5], "fecha_lanzamiento": p[6],
+                    "images": p[7], "prices": get_prices(p[0])
                 } for p in products
             ]
         }
