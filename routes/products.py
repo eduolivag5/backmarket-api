@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from database import get_db_connection
 from models import Product
 from uuid import UUID
+from typing import Optional
 
 router = APIRouter(prefix="/products", tags=["Productos"])
 
@@ -11,12 +12,15 @@ router = APIRouter(prefix="/products", tags=["Productos"])
     424: {"description": "Error de validación."},
     500: {"description": "Error interno del servidor."}
 })
-def get_products(id: UUID | None = Query(None, alias="id")):
+def get_products(
+    id: Optional[UUID] = Query(None, alias="id"),
+    category: Optional[str] = Query(None, alias="category"),
+    tags: Optional[str] = Query(None, alias="tags")  # Ej: "iphone,movil,apple"
+):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-
         def get_prices(product_id):
             cursor.execute("""
                 SELECT ps.estado, pr.price
@@ -27,7 +31,6 @@ def get_products(id: UUID | None = Query(None, alias="id")):
             return [{"status": estado, "price": price} for estado, price in cursor.fetchall()]
 
         if id:
-            # Buscar un producto por ID
             cursor.execute("SELECT * FROM products WHERE id = %s", (str(id),))
             product = cursor.fetchone()
             if product:
@@ -40,12 +43,30 @@ def get_products(id: UUID | None = Query(None, alias="id")):
                         "fecha_lanzamiento": product[6], "images": product[7], "prices": get_prices(product[0])
                     }
                 }
-            # Lanzar directamente una excepción HTTP 404 sin capturarla en el except
             raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-        # Obtener todos los productos
-        cursor.execute("SELECT * FROM products")
+        # Armar query dinámico
+        query = "SELECT * FROM products"
+        filters = []
+        values = []
+
+        if category:
+            filters.append("category = %s")
+            values.append(category)
+
+        if tags:
+            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+            if tag_list:
+                # usamos operador && para arrays que tengan intersección
+                filters.append("tags && %s::text[]")
+                values.append(tag_list)
+
+        if filters:
+            query += " WHERE " + " AND ".join(filters)
+
+        cursor.execute(query, tuple(values))
         products = cursor.fetchall()
+
         return {
             "error": False,
             "message": "OK",
@@ -57,6 +78,7 @@ def get_products(id: UUID | None = Query(None, alias="id")):
                 } for p in products
             ]
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
