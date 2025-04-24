@@ -11,33 +11,30 @@ router = APIRouter(prefix="/categories", tags=["Categorias"])
     404: {"description": "Categoria no encontrada."},
     500: {"description": "Error interno del servidor."}
 })
-def get_brands(id: int | None = Query(None, alias="id")):
+def get_categories(id: int | None = Query(None, alias="id")):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
         if id:
             cursor.execute("SELECT * FROM categories WHERE id = %s", (str(id),))
-            brands = cursor.fetchall()
-            if brands:
+            category = cursor.fetchone()
+            if category:
                 return {
                     "error": False,
                     "message": "OK",
-                    "data": [
-                        {"id": p[0], "category": p[1]}
-                        for p in brands
-                    ]
+                    "data": {"id": category[0], "name": category[1]}
                 }
             raise HTTPException(status_code=404, detail="Categoria no encontrada.")
 
         cursor.execute("SELECT * FROM categories")
-        brands = cursor.fetchall()
+        categories = cursor.fetchall()
         return {
             "error": False,
             "message": "OK",
             "data": [
-                {"id": p[0], "category": p[1]}
-                for p in brands
+                {"id": p[0], "name": p[1]}
+                for p in categories
             ]
         }
     except Exception as e:
