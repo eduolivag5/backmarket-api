@@ -44,3 +44,7 @@ class Reviews(BaseModel):
     stars: float
     comment: str
     image: str
+
+class Category(BaseModel):
+    id: Optional[int] = None
+    category: str
