@@ -8,35 +8,35 @@ router = APIRouter(prefix="/brands", tags=["Marcas"])
 
 # Obtener marcas
 @router.get("", status_code=200, responses={
-    404: {"description": "Precio no encontrado."},
+    404: {"description": "Marca no encontrada."},
     500: {"description": "Error interno del servidor."}
 })
-def get_brands(id: int | None = Query(None, alias="id")):
+def get_brands(category: int | None = Query(None, alias="category")):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        if id:
-            cursor.execute("SELECT * FROM brands WHERE id = %s", (str(id),))
+        if category:
+            cursor.execute("SELECT id, marca, img_header FROM brands WHERE category = %s", (str(category),))
             brands = cursor.fetchall()
             if brands:
                 return {
                     "error": False,
                     "message": "OK",
                     "data": [
-                        {"id": p[0], "marca": p[1]}
+                        {"id": p[0], "marca": p[1], "img_header": p[2]}
                         for p in brands
                     ]
                 }
-            raise HTTPException(status_code=404, detail="Precio no encontrado.")
+            raise HTTPException(status_code=404, detail="Marca no encontrada.")
 
-        cursor.execute("SELECT * FROM brands")
+        cursor.execute("SELECT id, marca, img_header FROM brands")
         brands = cursor.fetchall()
         return {
             "error": False,
             "message": "OK",
             "data": [
-                {"id": p[0], "marca": p[1]}
+                {"id": p[0], "marca": p[1], "img_header": p[2]}
                 for p in brands
             ]
         }
