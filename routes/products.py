@@ -24,7 +24,7 @@ def get_products(
         def get_prices(product_id):
             cursor.execute("""
                 SELECT ps.estado, pr.price
-                FROM prices pr
+                FROM prices_v2 pr
                 JOIN phone_status ps ON pr.status = ps.id
                 WHERE pr.id_product = %s
             """, (str(product_id),))
