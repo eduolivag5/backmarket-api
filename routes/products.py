@@ -31,22 +31,22 @@ def get_products(
             return [{"status": estado, "price": price} for estado, price in cursor.fetchall()]
 
         if id:
-            cursor.execute("SELECT * FROM products WHERE id = %s", (str(id),))
+            cursor.execute("SELECT * FROM products_v2 WHERE id = %s", (str(id),))
             product = cursor.fetchone()
             if product:
                 return {
                     "error": False,
                     "message": "OK",
                     "data": {
-                        "id": product[0], "created_at": product[1], "marca": product[2],
-                        "modelo": product[3], "color": product[4], "almacenamiento": product[5],
-                        "fecha_lanzamiento": product[6], "images": product[7], "prices": get_prices(product[0])
+                        "id": product[0], "created_at": product[1], "category": product[2],
+                        "brand": product[3], "name_short": product[4], "name": product[5], "colors": product[6],
+                        "storages": product[7], "images": product[8], "tags": product[9], "prices": get_prices(product[0])
                     }
                 }
             raise HTTPException(status_code=404, detail="Producto no encontrado")
 
         # Armar query dinámico
-        query = "SELECT * FROM products"
+        query = "SELECT * FROM products_v2"
         filters = []
         values = []
 
@@ -72,10 +72,10 @@ def get_products(
             "message": "OK",
             "data": [
                 {
-                    "id": p[0], "created_at": p[1], "marca": p[2], "modelo": p[3],
-                    "color": p[4], "almacenamiento": p[5], "fecha_lanzamiento": p[6],
-                    "images": p[7], "prices": get_prices(p[0])
-                } for p in products
+                    "id": product[0], "created_at": product[1], "category": product[2],
+                    "brand": product[3], "name_short": product[4], "name": product[5], "colors": product[6],
+                    "storages": product[7], "images": product[8], "tags": product[9], "prices": get_prices(product[0])
+                } for product in products
             ]
         }
 
@@ -85,7 +85,6 @@ def get_products(
         conn.close()
 
 
-# Crear un producto
 @router.post("", status_code=201, responses={
     424: {"description": "Error de validación."},
     500: {"description": "Error interno del servidor."}
@@ -95,19 +94,43 @@ def create_product(product: Product):
     cursor = conn.cursor()
 
     try:
-        query = """
-            INSERT INTO products (marca, modelo, color, almacenamiento, fecha_lanzamiento, image_urls) 
-            VALUES (%s, %s, %s, %s, %s, %s)
+        # Verificar si el nombre del producto ya existe
+        check_query = """
+            SELECT 1 FROM products_v2 WHERE name = %s OR name_short = %s
         """
-        values = (product.marca, product.modelo, product.color, product.almacenamiento, product.fecha_lanzamiento, product.images)
-        cursor.execute(query, values)
+        cursor.execute(check_query, (product.name, product.name_short))
+        existing_product = cursor.fetchone()
+
+        if existing_product:
+            raise HTTPException(status_code=424, detail="Ya existe un producto con el mismo nombre o nombre corto")
+
+        # Si no existe, proceder con la inserción
+        insert_query = """
+            INSERT INTO products_v2 (category, brand, name_short, name, colors, storages, images, tags) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        values = (product.category, product.brand, product.name_short, product.name, product.colors,
+                  product.storages, product.images, product.tags
+                  )
+        cursor.execute(insert_query, values)
+        new_id = cursor.fetchone()[0]  # Obtener el ID generado
         conn.commit()
-        return {"error": False, "message": "Producto creado correctamente", "data": product}
+
+        return {
+            "error": False,
+            "message": "Producto creado correctamente",
+            "data": {
+                **product.model_dump(),
+                "id": new_id
+            }
+        }
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail="Error al crear producto: " + str(e))
     finally:
         conn.close()
+
 
 # Actualizar un producto por ID
 @router.put("", status_code=200, responses={
@@ -120,36 +143,37 @@ def update_product(id: UUID = Query(..., alias="id"), product: Product = None):
 
     try:
         # Verificar si el producto existe
-        cursor.execute("SELECT 1 FROM products WHERE id = %s", (str(id),))
+        cursor.execute("SELECT 1 FROM products_v2 WHERE id = %s", (str(id),))
         if cursor.fetchone() is None:
-            # Si no se encuentra el producto, lanzar un error 404
             raise HTTPException(status_code=404, detail="Producto no encontrado.")
 
-        # Si el producto existe, proceder con la actualización
+        # Actualizar el producto
         query = """
-            UPDATE products 
-            SET marca = %s, modelo = %s, color = %s, almacenamiento = %s, fecha_lanzamiento = %s, image_urls = %s
+            UPDATE products_v2
+            SET category = %s, brand = %s, name_short = %s, name = %s,
+                colors = %s, storages = %s, images = %s, tags = %s
             WHERE id = %s
         """
-        values = (product.marca, product.modelo, product.color, product.almacenamiento, product.fecha_lanzamiento, product.images, str(id))
+        values = (
+            product.category, product.brand, product.name_short, product.name,
+            product.colors, product.storages, product.images, product.tags, str(id)
+        )
         cursor.execute(query, values)
         conn.commit()
 
-        # Verificar si la actualización afectó alguna fila
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Producto no encontrado")
 
         return {"error": False, "message": "Producto actualizado correctamente", "data": None}
 
     except HTTPException as e:
-        # Capturamos específicamente HTTPException para manejar los errores personalizados
         raise e
     except Exception as e:
-        # Si hay otro tipo de error, rollback y lanzamos error 500
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
 
 
 # Eliminar un producto por ID
@@ -163,27 +187,22 @@ def delete_product(id: UUID = Query(..., alias="id")):
 
     try:
         # Verificar si el producto existe
-        cursor.execute("SELECT 1 FROM products WHERE id = %s", (str(id),))
+        cursor.execute("SELECT 1 FROM products_v2 WHERE id = %s", (str(id),))
         if cursor.fetchone() is None:
-            # Si el producto no existe, lanzar error 404
             raise HTTPException(status_code=404, detail="Producto no encontrado.")
 
-        # Proceder con la eliminación del producto
-        cursor.execute("DELETE FROM products WHERE id = %s", (str(id),))
+        # Eliminar el producto
+        cursor.execute("DELETE FROM products_v2 WHERE id = %s", (str(id),))
         conn.commit()
 
-        # Verificar si la eliminación afectó alguna fila
         if cursor.rowcount == 0:
-            # Si no se afectó ninguna fila, lanzar error 404
             raise HTTPException(status_code=404, detail="Producto no encontrado.")
 
         return {"error": False, "message": "Producto eliminado correctamente", "data": None}
 
     except HTTPException as e:
-        # Capturar la excepción HTTPException y lanzar el código correspondiente
         raise e
     except Exception as e:
-        # Capturar cualquier otro tipo de error
         conn.rollback()
         raise HTTPException(status_code=500, detail="Error interno del servidor: " + str(e))
     finally:

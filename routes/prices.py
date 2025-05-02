@@ -19,26 +19,26 @@ def get_prices(id: UUID | None = Query(None, alias="id")):
 
     try:
         if id:
-            cursor.execute("SELECT * FROM prices WHERE id_product = %s", (str(id),))
+            cursor.execute("SELECT * FROM prices_v2 WHERE id_product = %s", (str(id),))
             prices = cursor.fetchall()
             if prices:
                 return {
                     "error": False,
                     "message": "OK",
                     "data": [
-                        {"id": p[0], "id_product": p[1], "status": p[2], "battery": p[3], "price": p[4]}
+                        {"id": p[0], "id_product": p[1], "status": p[2], "price": p[3]}
                         for p in prices
                     ]
                 }
             raise HTTPException(status_code=404, detail="Precio no encontrado.")
 
-        cursor.execute("SELECT * FROM prices")
+        cursor.execute("SELECT * FROM prices_v2")
         prices = cursor.fetchall()
         return {
             "error": False,
             "message": "OK",
             "data": [
-                {"id": p[0], "id_product": p[1], "status": p[2], "battery": p[3], "price": p[4]}
+                {"id": p[0], "id_product": p[1], "status": p[2], "price": p[3]}
                 for p in prices
             ]
         }
@@ -59,10 +59,10 @@ def create_price(price: Price):
 
     try:
         query = """
-            INSERT INTO prices (id_product, status, battery, price) 
-            VALUES (%s, %s, %s, %s) RETURNING id
+            INSERT INTO prices_v2 (id_product, status, price) 
+            VALUES (%s, %s, %s) RETURNING id
         """
-        values = (str(price.id_product), price.status, price.battery, price.price)
+        values = (str(price.id_product), price.status, price.price)
         cursor.execute(query, values)
         new_id = cursor.fetchone()["id"]  # Acceder al 'id' correctamente usando DictCursor
         conn.commit()
@@ -96,11 +96,11 @@ def update_price(id: UUID = Query(..., alias="id"), price: Price = None):
 
     try:
         query = """
-            UPDATE prices 
-            SET id_product = %s, status = %s, battery = %s, price = %s
+            UPDATE prices_v2 
+            SET id_product = %s, status = %s, price = %s
             WHERE id = %s
         """
-        values = (str(price.id_product), price.status, price.battery, price.price, str(id))
+        values = (str(price.id_product), price.status, price.price, str(id))
         cursor.execute(query, values)
         conn.commit()
         if cursor.rowcount == 0:
@@ -125,7 +125,7 @@ def delete_price(id: UUID = Query(None, alias="id"), id_product: UUID = Query(No
     try:
         if id_product:
             # Eliminar todos los precios de un producto específico
-            cursor.execute("DELETE FROM prices WHERE id_product = %s", (str(id_product),))
+            cursor.execute("DELETE FROM prices_v2 WHERE id_product = %s", (str(id_product),))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="No se encontraron precios para este producto.")
@@ -133,7 +133,7 @@ def delete_price(id: UUID = Query(None, alias="id"), id_product: UUID = Query(No
 
         if id:
             # Eliminar un precio específico por ID
-            cursor.execute("DELETE FROM prices WHERE id = %s", (str(id),))
+            cursor.execute("DELETE FROM prices_v2 WHERE id = %s", (str(id),))
             conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Precio no encontrado.")

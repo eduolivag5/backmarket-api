@@ -15,9 +15,9 @@ def get_reviews():
     cursor = conn.cursor()
 
     try:
-        cursor.execute('SELECT r.id, r.stars, r.comment, r.image, pr.id as product_id, pr.modelo, u.name as name_user ' \
+        cursor.execute('SELECT r.id, r.stars, r.comment, r.image, pr.id as product_id, pr.name_short, u.name as name_user ' \
                 'FROM reviews r ' \
-                'INNER JOIN products pr ON r."productId" = pr.id ' \
+                'INNER JOIN products_v2 pr ON r."productId" = pr.id ' \
                 'INNER JOIN users u ON r.id_user = u.id;')
         reviews = cursor.fetchall()
         return {
@@ -30,7 +30,7 @@ def get_reviews():
                     "comment": p[2],
                     "image": p[3],
                     "product_id": p[4],
-                    "modelo": p[5],
+                    "model": p[5],
                     "name_user": p[6]
                 }
                 for p in reviews

@@ -6,19 +6,20 @@ from typing import Optional
 # Modelo de Producto
 class Product(BaseModel):
     id: UUID = Field(default_factory=uuid4)
-    marca: int
-    modelo: str
-    color: list[str]
-    almacenamiento: list[int]
-    fecha_lanzamiento: datetime.date
+    category: int
+    brand: int
+    name_short: str
+    name: str
+    colors: list[str]
+    storages: list[int]
     images: list[str]
+    tags: list[str]
 
 # Modelo de Precio
 class Price(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     id_product: UUID
     status: int
-    battery: int
     price: float
 
 class Brand(BaseModel):
