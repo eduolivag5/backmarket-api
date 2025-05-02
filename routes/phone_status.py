@@ -15,26 +15,26 @@ def get_status(id: int | None = Query(None, alias="id")):
 
     try:
         if id:
-            cursor.execute("SELECT * FROM phone_status WHERE id = %s", (str(id),))
+            cursor.execute("SELECT * FROM phone_status WHERE id = %s ORDER BY status_order", (str(id),))
             phone_status = cursor.fetchall()
             if phone_status:
                 return {
                     "error": False,
                     "message": "OK",
                     "data": [
-                        {"id": p[0], "estado": p[1], "descripcion": p[2]}
+                        {"id": p[0], "estado": p[1], "description": p[2], "screen_tags": p[3], "case_tags": p[4], "order": p[5]}
                         for p in phone_status
                     ]
                 }
             raise HTTPException(status_code=404, detail="Estado de venta no encontrado.")
 
-        cursor.execute("SELECT * FROM phone_status")
+        cursor.execute("SELECT * FROM phone_status ORDER BY status_order")
         phone_status = cursor.fetchall()
         return {
             "error": False,
             "message": "OK",
             "data": [
-                {"id": p[0], "estado": p[1], "descripcion": p[2]}
+                {"id": p[0], "estado": p[1], "description": p[2], "screen_tags": p[3], "case_tags": p[4], "order": p[5]}
                 for p in phone_status
             ]
         }
