@@ -90,21 +90,21 @@ def create_price(price: Price):
     404: {"description": "Precio no encontrado."},
     500: {"description": "Error interno del servidor."}
 })
-def update_price(id: UUID = Query(..., alias="id"), price: Price = None):
+def update_product_price(price: Price = None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
         query = """
             UPDATE prices_v2 
-            SET id_product = %s, status = %s, price = %s
-            WHERE id = %s
+            SET price = %s
+            WHERE id_product = %s and status = %s
         """
-        values = (str(price.id_product), price.status, price.price, str(id))
+        values = (price.price, str(price.id_product), price.status)
         cursor.execute(query, values)
         conn.commit()
         if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Precio no encontrado.")
+            raise HTTPException(status_code=404, detail="Opción de producto no encontrado.")
         return {"error": False, "message": "Precio actualizado correctamente.", "data": None}
     except Exception as e:
         conn.rollback()

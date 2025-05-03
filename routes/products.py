@@ -164,7 +164,11 @@ def update_product(id: UUID = Query(..., alias="id"), product: Product = None):
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-        return {"error": False, "message": "Producto actualizado correctamente", "data": None}
+        return {
+            "error": False,
+            "message": "Producto actualizado correctamente",
+            "data": {"id": str(id)}
+        }
 
     except HTTPException as e:
         raise e
@@ -173,6 +177,7 @@ def update_product(id: UUID = Query(..., alias="id"), product: Product = None):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
 
 
 
