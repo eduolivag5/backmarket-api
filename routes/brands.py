@@ -17,7 +17,7 @@ def get_brands(category: int | None = Query(None, alias="category")):
 
     try:
         if category:
-            cursor.execute("SELECT id, marca, img_header FROM brands WHERE category = %s", (str(category),))
+            cursor.execute("SELECT id, marca, img_header FROM brands_v2 WHERE category = %s", (str(category),))
             brands = cursor.fetchall()
             if brands:
                 return {
@@ -30,7 +30,7 @@ def get_brands(category: int | None = Query(None, alias="category")):
                 }
             raise HTTPException(status_code=404, detail="Marca no encontrada.")
 
-        cursor.execute("SELECT id, marca, img_header FROM brands")
+        cursor.execute("SELECT id, marca, img_header FROM brands_v2")
         brands = cursor.fetchall()
         return {
             "error": False,
@@ -56,7 +56,7 @@ def create_brand(brand: Brand):
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        query = "INSERT INTO brands (marca) VALUES (%s) RETURNING id"
+        query = "INSERT INTO brands_v2 (marca) VALUES (%s) RETURNING id"
         cursor.execute(query, (brand.marca,))
         new_id = cursor.fetchone()["id"]  # Obtener el ID generado por la BD
         conn.commit()
@@ -83,14 +83,14 @@ def update_brand(id: int = Query(..., alias="id"), brand: Brand = None):
 
     try:
         # Verificar si la marca existe
-        cursor.execute("SELECT 1 FROM brands WHERE id = %s", (str(id),))
+        cursor.execute("SELECT 1 FROM brands_v2 WHERE id = %s", (str(id),))
         if cursor.fetchone() is None:
             # Si la marca no existe, lanzar error 404
             raise HTTPException(status_code=404, detail="Marca no encontrada.")
 
         # Proceder con la actualización de la marca
         query = """
-            UPDATE brands 
+            UPDATE brands_v2 
             SET marca = %s
             WHERE id = %s
         """
@@ -127,7 +127,7 @@ def delete_brand(id: int = Query(..., alias="id")):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("DELETE FROM brands WHERE id = %s", (str(id),))
+        cursor.execute("DELETE FROM brands_v2 WHERE id = %s", (str(id),))
         conn.commit()
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Marca no encontrada.")
