@@ -1,10 +1,9 @@
 import os
 import psycopg2
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from routes import products, prices, brands, phone_status, reviews, categories
-from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
 # Cargar variables de entorno

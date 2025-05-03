@@ -96,13 +96,20 @@ def create_product(product: Product):
     try:
         # Verificar si el nombre del producto ya existe
         check_query = """
-            SELECT 1 FROM products_v2 WHERE name = %s OR name_short = %s
+            SELECT id FROM products_v2 WHERE name = %s OR name_short = %s
         """
         cursor.execute(check_query, (product.name, product.name_short))
         existing_product = cursor.fetchone()
 
         if existing_product:
-            raise HTTPException(status_code=424, detail="Ya existe un producto con el mismo nombre o nombre corto")
+            existing_id = existing_product[0]
+            raise HTTPException(
+                status_code=424,
+                detail={
+                    "message": "Ya existe el mismo producto.",
+                    "id": existing_id
+                }
+            )
 
         # Si no existe, proceder con la inserción
         insert_query = """
@@ -110,9 +117,10 @@ def create_product(product: Product):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
-        values = (product.category, product.brand, product.name_short, product.name, product.colors,
-                  product.storages, product.images, product.tags
-                  )
+        values = (
+            product.category, product.brand, product.name_short, product.name,
+            product.colors, product.storages, product.images, product.tags
+        )
         cursor.execute(insert_query, values)
         new_id = cursor.fetchone()[0]  # Obtener el ID generado
         conn.commit()
@@ -125,11 +133,15 @@ def create_product(product: Product):
                 "id": new_id
             }
         }
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail="Error al crear producto: " + str(e))
     finally:
         conn.close()
+
 
 
 # Actualizar un producto por ID

@@ -55,16 +55,30 @@ def get_prices(id: UUID | None = Query(None, alias="id")):
 })
 def create_price(price: Price):
     conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)  # Usar DictCursor para acceder a las columnas por nombre
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     try:
-        query = """
+        # Verificar si ya existe una combinación de id_product y status
+        check_query = """
+            SELECT id FROM prices_v2 WHERE id_product = %s AND status = %s
+        """
+        cursor.execute(check_query, (str(price.id_product), price.status))
+        existing_price = cursor.fetchone()
+
+        if existing_price:
+            raise HTTPException(
+                status_code=424,
+                detail=f"Ya existe esa combinación de precios para ese producto."
+            )
+
+        # Insertar nuevo precio
+        insert_query = """
             INSERT INTO prices_v2 (id_product, status, price) 
             VALUES (%s, %s, %s) RETURNING id
         """
         values = (str(price.id_product), price.status, price.price)
-        cursor.execute(query, values)
-        new_id = cursor.fetchone()["id"]  # Acceder al 'id' correctamente usando DictCursor
+        cursor.execute(insert_query, values)
+        new_id = cursor.fetchone()["id"]
         conn.commit()
         price.id = new_id
 
@@ -74,9 +88,13 @@ def create_price(price: Price):
             "data": {"id": new_id, "price": price}
         }
 
+
     except errors.ForeignKeyViolation:
         conn.rollback()
         raise HTTPException(status_code=424, detail="El producto no existe.")
+
+    except HTTPException as e:
+        raise e  # <-- Añadir esta línea
 
     except Exception as e:
         conn.rollback()
@@ -84,6 +102,8 @@ def create_price(price: Price):
 
     finally:
         conn.close()
+
+
 
 # Actualizar un precio por ID
 @router.put("", status_code=200, responses={
