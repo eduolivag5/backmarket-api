@@ -1,0 +1,14 @@
+app = "back-market-api"
+
+[env]
+PORT = "10000"
+
+[build]
+  # Build command personalizado
+  # Fly.io no ejecuta este campo directamente, pero lo podemos documentar
+  # Si usas Dockerfile puedes ponerlo allí en vez de aquí
+  command = "pip install -r requirements.txt"
+
+[processes]
+# Comando para iniciar la app
+app = "uvicorn main:app --host 0.0.0.0 --port 10000"
